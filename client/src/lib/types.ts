@@ -1,0 +1,87 @@
+
+import type { SceneKind } from "../data/content"
+import { peso } from "./format"
+
+export interface DestinationSummary {
+  id: number
+  slug: string
+  name: string
+  category: "mountain" | "beach" | "waterfall"
+  scene: SceneKind
+}
+
+export interface PackageSummary {
+  id: number
+  slug: string
+  name: string
+  tagline: string | null
+  scene: SceneKind
+}
+
+export interface Package extends PackageSummary {
+  description: string | null
+  capacity: number | null
+  pricingType: "per_guest" | "flat"
+  basePrice: number | null
+  inclusions: string[]
+  imageUrl: string | null
+  destinations: DestinationSummary[]
+}
+
+export interface Destination extends DestinationSummary {
+  location: string | null
+  description: string | null
+  imageUrl: string | null
+  packages: PackageSummary[]
+}
+
+export const categoryLabel: Record<DestinationSummary["category"], string> = {
+  mountain: "Mountain / Highland",
+  beach: "Beach / Coastal",
+  waterfall: "Waterfall / Inland",
+}
+
+export function priceLabel(p: Pick<Package, "basePrice" | "pricingType">): string {
+  if (p.basePrice === null) return "Pricing coming soon"
+  const amount = peso(p.basePrice)
+  return p.pricingType === "per_guest" ? `${amount} per guest` : amount
+}
+
+// ---- booking ----
+export interface Addon {
+  id: number
+  name: string
+  type: "meal" | "extra"
+  price: number
+  priceType: "per_guest" | "per_booking"
+}
+
+export interface PriceLine {
+  label: string
+  detail: string
+  amount: number
+}
+
+export type PriceQuote =
+  | { priceAvailable: false; reason: string }
+  | { priceAvailable: true; currency: "PHP"; lines: PriceLine[]; total: number }
+
+export interface Availability {
+  available: boolean
+  remaining: number
+  reason?: string
+}
+
+export interface Booking {
+  reference: string
+  status: "pending" | "confirmed" | "rejected" | "cancelled"
+  paymentStatus: "unpaid" | "paid" | "refunded"
+  packageName: string
+  destinationName: string
+  date: string
+  guests: number
+  mealOption: string | null
+  addons: string[]
+  totalPrice: number
+  createdAt: string
+}
