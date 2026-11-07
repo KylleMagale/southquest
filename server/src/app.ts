@@ -10,6 +10,9 @@ import {
   type BookingRecord,
   type BookingStore,
 } from "./bookingStore.js"
+import { contentRouter } from "./contentRoutes.js"
+import type { ContentStore } from "./contentStore.js"
+import { BadRequest } from "./errors.js"
 import { calculatePrice, type Addon } from "./pricing.js"
 import type { Destination, Package } from "./types.js"
 
@@ -23,6 +26,10 @@ export interface Catalog {
 export interface Deps {
   catalog: Catalog
   store: BookingStore
+
+  /** Packages, destinations, add-ons and daily limits edited by admins. */
+  content: ContentStore
+
   requireAuth: RequestHandler
   /** Same as requireAuth, but only lets admins through (403 for everyone else). */
   requireAdmin: RequestHandler
@@ -32,15 +39,6 @@ export interface Deps {
   corsOrigin?: string
   /** Injectable for tests. */
   today?: () => string
-}
-
-class BadRequest extends Error {
-  constructor(
-    message: string,
-    public status = 400,
-  ) {
-    super(message)
-  }
 }
 
 const REF_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789" // no 0/O/1/I/L lookalikes
@@ -81,7 +79,7 @@ export function checkChange(current: BookingRecord, change: BookingChange): stri
 }
 
 export function createApp(deps: Deps) {
-  const { catalog, store, requireAuth, requireAdmin } = deps
+  const { catalog, store, content, requireAuth, requireAdmin } = deps
   const today = deps.today ?? todayInManila
   const app = express()
 
@@ -354,11 +352,29 @@ export function createApp(deps: Deps) {
     }),
   )
 
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    app.use(
+  "/api/admin",
+  contentRouter({
+    content,
+    bookings: store,
+    requireAdmin,
+    defaultDailyLimit: deps.defaultDailyLimit,
+    today,
+  }),
+)
+
+    app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof BadRequest) {
       res.status(err.status).json({ error: err.message })
       return
     }
+
+    // Malformed JSON from the browser is the sender's mistake, not a server fault.
+    if ((err as { type?: string }).type === "entity.parse.failed") {
+      res.status(400).json({ error: "Send the details as valid JSON" })
+      return
+    }
+
     console.error(err)
     res.status(500).json({ error: "Something went wrong" })
   })

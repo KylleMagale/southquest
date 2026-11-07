@@ -22,7 +22,7 @@ async function authHeader(): Promise<Record<string, string>> {
 }
 
 interface FetchOptions {
-  method?: "GET" | "POST" | "PATCH"
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE"
   body?: unknown
   /** Send the signed-in user's access token. */
   auth?: boolean

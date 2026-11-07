@@ -95,3 +95,32 @@ export interface AdminBooking extends Booking {
     phone: string | null
   }
 }
+
+
+// ---- admin: content ----
+export type ContentStatus = "active" | "inactive"
+
+export interface AdminPackage extends Omit<Package, "destinations"> {
+  status: ContentStatus
+  destinationIds: number[]
+}
+
+export interface AdminDestination extends Omit<Destination, "packages"> {
+  status: ContentStatus
+}
+
+export interface AdminAddon extends Addon {
+  status: ContentStatus
+}
+
+export interface DateLimitRow {
+  date: string
+  maxBookings: number
+  /** Pending + confirmed bookings already on that date. */
+  taken: number
+}
+
+export interface LimitsReply {
+  defaultLimit: number
+  limits: DateLimitRow[]
+}

@@ -49,9 +49,12 @@ describe("API", () => {
   const OK_DATE = "2030-06-15"
 
   before(async () => {
+    const memory = createMemoryStore(addons, (id) => ({ name: `Name ${id}`, email: `${id}@example.com`, phone: "0917 000 0000" }))
     const app = createApp({
       catalog,
-      store: createMemoryStore(addons, (id) => ({ name: `Name ${id}`, email: `${id}@example.com`, phone: "0917 000 0000" })),
+      store: memory,
+      content: memory,
+      
       // Test auth: "Authorization: Bearer <userId>". Ids starting with "admin" are admins.
       requireAuth: (req, res, next) => {
         const token = (req.headers.authorization ?? "").replace("Bearer ", "")

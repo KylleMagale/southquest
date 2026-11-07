@@ -28,6 +28,10 @@ import PackageDetailPage from "./pages/PackageDetailPage"
 import DestinationsPage from "./pages/DestinationsPage"
 import DestinationDetailPage from "./pages/DestinationDetailPage"
 import AdminBookingsPage from "./pages/AdminBookingsPage"
+import AdminPackagesPage from "./pages/AdminPackagesPage"
+import AdminDestinationsPage from "./pages/AdminDestinationsPage"
+import AdminAddonsPage from "./pages/AdminAddonsPage"
+import AdminAvailabilityPage from "./pages/AdminAvailabilityPage"
 
 function Landing() {
   const { hash } = useLocation()
@@ -135,6 +139,11 @@ export default function App() {
                 </RequireAuth>
               }
             />
+
+            <Route path="/admin/packages" element={<RequireAuth admin><AdminPackagesPage /></RequireAuth>} />
+            <Route path="/admin/destinations" element={<RequireAuth admin><AdminDestinationsPage /></RequireAuth>} />
+            <Route path="/admin/addons" element={<RequireAuth admin><AdminAddonsPage /></RequireAuth>} />
+            <Route path="/admin/availability" element={<RequireAuth admin><AdminAvailabilityPage /></RequireAuth>} />
 
             <Route path="/builder" element={<BuilderPage />} />
 

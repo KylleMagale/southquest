@@ -15,6 +15,7 @@ const store = supabase
 const app = createApp({
   catalog,
   store,
+  content: store,
   requireAuth,
   requireAdmin,
   dataSource: catalog.dataSource,

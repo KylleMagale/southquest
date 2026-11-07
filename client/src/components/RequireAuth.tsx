@@ -90,7 +90,6 @@ export function AuthNotConfigured() {
   )
 }
 
-
 /**
  * Booking pages are for customers. Admins run the business, so they see a
  * short note instead (the server also refuses bookings from admin accounts).
