@@ -89,3 +89,36 @@ export function AuthNotConfigured() {
     </PageShell>
   )
 }
+
+
+/**
+ * Booking pages are for customers. Admins run the business, so they see a
+ * short note instead (the server also refuses bookings from admin accounts).
+ */
+export function NotForAdmins({ children }: { children: ReactNode }) {
+  const { role } = useAuth()
+
+  if (role !== "admin") return <>{children}</>
+
+  return (
+    <PageShell title="Customers only">
+      <div className="max-w-xl mx-auto px-6 text-center py-16">
+        <h1 className="text-3xl font-black tracking-tighter">
+          Bookings are for customers.
+        </h1>
+
+        <p className="font-mono text-sm text-ink/60 mt-2">
+          You're signed in as an admin. To test the booking flow, log out and use a customer account.
+        </p>
+
+        <Link
+          to="/admin/bookings"
+          className="inline-block mt-6 bg-brand text-ink px-6 py-3 rounded-full font-bold text-sm"
+        >
+          Go to admin bookings
+        </Link>
+      </div>
+    </PageShell>
+  )
+}
+

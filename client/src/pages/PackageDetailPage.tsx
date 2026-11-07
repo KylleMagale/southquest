@@ -2,9 +2,10 @@
 import { motion } from "framer-motion"
 import { Check, MapPin, Users } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
-import { Scene } from "../components/Scene"
+import { Photo } from "../components/Photo"
 import { ErrorState, LoadingState, NotFoundState, PageShell } from "../components/PageShell"
 import { useApi } from "../lib/api"
+import { packagePhoto } from "../lib/photos"
 import { categoryLabel, priceLabel, type Package } from "../lib/types"
 
 export default function PackageDetailPage() {
@@ -23,12 +24,19 @@ export default function PackageDetailPage() {
           </Link>
 
           <div className="grid lg:grid-cols-2 gap-10 mt-6 items-start">
+            
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="rounded-3xl overflow-hidden border-2 border-ink/10 shadow-xl aspect-[4/5] lg:sticky lg:top-28"
+              className="rounded-3xl overflow-hidden border-2 border-ink/10 shadow-xl aspect-[4/3] lg:sticky lg:top-28"
             >
-              <Scene kind={data.scene} className="w-full h-full" />
+              <Photo
+                photo={packagePhoto(data.slug, data.imageUrl)}
+                alt={`${data.name} package`}
+                scene={data.scene}
+                className="w-full h-full"
+                eager
+              />
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">

@@ -2,15 +2,10 @@
 import { motion } from "framer-motion"
 import { Link } from "react-router-dom"
 import { ErrorState, LoadingState, PageHeading, PageShell } from "../components/PageShell"
+import { Photo } from "../components/Photo"
 import { useApi } from "../lib/api"
+import { packagePhoto } from "../lib/photos"
 import { priceLabel, type Package } from "../lib/types"
-
-const packageImages: Record<string, string> = {
-  "peak-explorer": "/images/peak-explorer.webp",
-  "coastal-breeze-glamp": "/images/coastal-breeze-glamp.webp",
-  "mountain-ridge-deluxe": "/images/mountain-ridge-deluxe.webp",
-  "forest-falls-sanctuary": "/images/forest-and-falls-sanctuary.webp",
-}
 
 export default function PackagesPage() {
   const { data, status, retry } = useApi<Package[]>("/packages")
@@ -42,12 +37,14 @@ export default function PackagesPage() {
                 className="group flex flex-col h-full bg-white border-2 border-ink/10 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:border-brand transition-all"
               >
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img
-                    src={packageImages[p.slug] ?? "/images/peak-explorer.webp"}
+                  
+                  <Photo
+                    photo={packagePhoto(p.slug, p.imageUrl)}
                     alt={`${p.name} package`}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    loading="lazy"
+                    scene={p.scene}
+                    className="w-full h-full group-hover:scale-105 transition-transform duration-500"
                   />
+
                 </div>
 
                 <div className="p-5 flex flex-col flex-1">

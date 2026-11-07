@@ -1,7 +1,6 @@
-
 import { useState, type FormEvent } from "react"
 import { Link, Navigate, useLocation } from "react-router-dom"
-import { AuthCard, Field, FormError, SubmitButton } from "../components/AuthForm"
+import { AuthCard, Field, FormError, PasswordField, SubmitButton } from "../components/AuthForm"
 import { AuthNotConfigured } from "../components/RequireAuth"
 import { PageShell } from "../components/PageShell"
 import { useAuth } from "../lib/AuthContext"
@@ -53,10 +52,9 @@ export default function LoginPage() {
             placeholder="you@example.com"
           />
 
-          <Field
+          <PasswordField
             id="password"
             label="Password"
-            type="password"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

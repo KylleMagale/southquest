@@ -17,3 +17,19 @@ export function StatusBadge({ status }: { status: Booking["status"] }) {
     </span>
   )
 }
+
+const paymentStyles: Record<Booking["paymentStatus"], string> = {
+  unpaid: "bg-ink/10 text-ink/60",
+  paid: "bg-green-100 text-green-800",
+  refunded: "bg-blue-100 text-blue-800",
+}
+
+export function PaymentBadge({ status }: { status: Booking["paymentStatus"] }) {
+  return (
+    <span
+      className={`inline-block px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase ${paymentStyles[status]}`}
+    >
+      {status}
+    </span>
+  )
+}

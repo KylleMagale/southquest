@@ -1,38 +1,23 @@
+// Dates are plain "YYYY-MM-DD" strings (no time zones to get wrong).
+// "Today" is taken in Philippine time, since the campsites are in Cebu.
 
-/**
- * Helpers for validating booking dates.
- * Dates use YYYY-MM-DD format.
- */
-
-/** Returns true when value is a real calendar date in YYYY-MM-DD format. */
-export function isValidDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false
-  }
-
-  const [year, month, day] = value.split("-").map(Number)
-  const date = new Date(Date.UTC(year, month - 1, day))
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  )
+export function todayInManila(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })
 }
 
-/** Returns today's date in YYYY-MM-DD format. */
-export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
+export function isValidISODate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const d = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value
 }
 
-/** Returns tomorrow's date in YYYY-MM-DD format. */
-export function tomorrowISO(): string {
-  const tomorrow = new Date()
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
-  return tomorrow.toISOString().slice(0, 10)
+export function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
 }
 
-/** Returns true if the date is today or later. */
-export function isTodayOrFuture(value: string): boolean {
-  return isValidDate(value) && value >= todayISO()
+/** Earliest bookable date: tomorrow (change the 1 if you want more lead time). */
+export function minBookableDate(today: string): string {
+  return addDays(today, 1)
 }

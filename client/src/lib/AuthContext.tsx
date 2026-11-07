@@ -36,6 +36,9 @@ interface AuthContextValue {
     phone: string
   }) => Promise<AuthResult & { needsConfirmation?: boolean }>
   signOut: () => Promise<void>
+
+  updateProfile: (input: { fullName: string; phone: string }) => Promise<AuthResult>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<AuthResult>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -195,6 +198,64 @@ export function AuthProvider({
     setProfile(undefined)
   }, [])
 
+  
+  const updateProfile = useCallback<AuthContextValue["updateProfile"]>(
+    async ({ fullName, phone }) => {
+      if (!supabase || !userId) return { error: "Please log in again." }
+
+      // RLS only lets a user change their own row, and never their role.
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ full_name: fullName.trim(), phone: phone.trim() || null })
+        .eq("id", userId)
+        .select("full_name, phone, role")
+        .maybeSingle()
+
+      if (error || !data) {
+        return { error: "We couldn't save your changes. Please try again." }
+      }
+
+      setProfile({
+        fullName: data.full_name,
+        phone: data.phone,
+        role: data.role === "admin" ? "admin" : "customer",
+      })
+      return {}
+    },
+    [userId],
+  )
+
+  const changePassword = useCallback<AuthContextValue["changePassword"]>(
+    async (currentPassword, newPassword) => {
+      if (!supabase || !user?.email) return { error: "Please log in again." }
+
+      // Re-check the current password before allowing a password change.
+      const check = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      })
+
+      if (check.error) return { error: "Your current password is incorrect." }
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+
+      if (error) {
+        const m = error.message.toLowerCase()
+
+        if (m.includes("different from the old")) {
+          return { error: "Your new password must be different from the old one." }
+        }
+
+        return { error: friendlyError(error.message) }
+      }
+
+      return {}
+    },
+    [user?.email],
+  )
+
+
+  
   const value = useMemo<AuthContextValue>(
     () => ({
       configured: supabase !== null,
@@ -207,8 +268,19 @@ export function AuthProvider({
       signIn,
       signUp,
       signOut,
+      updateProfile,
+      changePassword,
     }),
-    [sessionLoading, user, profile, signIn, signUp, signOut],
+    [
+      sessionLoading,
+      user,
+      profile,
+      signIn,
+      signUp,
+      signOut,
+      updateProfile,
+      changePassword,
+    ],
   )
 
   return (

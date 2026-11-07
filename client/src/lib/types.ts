@@ -58,8 +58,9 @@ export interface Addon {
 
 export interface PriceLine {
   label: string
-  detail: string
-  amount: number
+  quantity: number
+  unitPrice: number
+  total: number
 }
 
 export type PriceQuote =
@@ -84,4 +85,13 @@ export interface Booking {
   addons: string[]
   totalPrice: number
   createdAt: string
+}
+
+/** What the admin API returns: a booking plus who made it. */
+export interface AdminBooking extends Booking {
+  customer: {
+    name: string | null
+    email: string | null
+    phone: string | null
+  }
 }

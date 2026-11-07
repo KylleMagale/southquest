@@ -2,7 +2,7 @@
 import { motion } from "framer-motion"
 import { MapPin } from "lucide-react"
 import { Link } from "react-router-dom"
-import { Scene } from "../components/Scene"
+import { Photo } from "../components/Photo"
 import {
   ErrorState,
   LoadingState,
@@ -10,6 +10,7 @@ import {
   PageShell,
 } from "../components/PageShell"
 import { useApi } from "../lib/api"
+import { destinationPhoto } from "../lib/photos"
 import { categoryLabel, type Destination } from "../lib/types"
 
 export default function DestinationsPage() {
@@ -46,9 +47,11 @@ export default function DestinationsPage() {
                 to={`/destinations/${d.slug}`}
                 className="group relative block aspect-[4/5] rounded-2xl overflow-hidden bg-ink"
               >
-                <Scene
-                  kind={d.scene}
-                  className="absolute inset-0 w-full h-full grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+                <Photo
+                  photo={destinationPhoto(d.slug, d.imageUrl)}
+                  alt={`${d.name} campsite`}
+                  scene={d.scene}
+                  className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
                 />
 
                 <div className="absolute inset-0 bg-brand/0 group-hover:bg-brand/20 transition-colors duration-300" />

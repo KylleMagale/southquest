@@ -63,8 +63,8 @@ export function Navigation() {
         </button>
       )}
 
-      <button onClick={() => goTo("/my-booking")} className={`text-sm font-medium transition-colors ${linkTone}`}>
-        My Booking
+      <button onClick={() => goTo("/account")} className={`text-sm font-medium transition-colors ${linkTone}`}>
+        My Account
       </button>
 
       <button onClick={handleLogout} className={`text-sm font-medium transition-colors ${linkTone}`}>
@@ -91,6 +91,10 @@ export function Navigation() {
 
           <button onClick={() => goTo("/my-booking")} className={mobileItem}>
             My Booking
+          </button>
+
+          <button onClick={() => goTo("/account")} className={mobileItem}>
+            My Account
           </button>
 
           <button onClick={handleLogout} className={mobileItem}>

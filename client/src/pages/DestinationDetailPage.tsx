@@ -2,9 +2,10 @@
 import { motion } from "framer-motion"
 import { MapPin } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
-import { Scene } from "../components/Scene"
+import { Photo } from "../components/Photo"
 import { ErrorState, LoadingState, NotFoundState, PageShell } from "../components/PageShell"
 import { useApi } from "../lib/api"
+import { destinationPhoto, packagePhoto } from "../lib/photos"
 import { categoryLabel, type Destination } from "../lib/types"
 
 export default function DestinationDetailPage() {
@@ -29,7 +30,14 @@ export default function DestinationDetailPage() {
             animate={{ opacity: 1, y: 0 }}
             className="relative mt-6 rounded-3xl overflow-hidden aspect-[4/3] md:aspect-[16/9] bg-ink"
           >
-            <Scene kind={data.scene} className="absolute inset-0 w-full h-full" />
+            <Photo
+              photo={destinationPhoto(data.slug, data.imageUrl)}
+              alt={`${data.name} campsite`}
+              scene={data.scene}
+              className="absolute inset-0 w-full h-full"
+              eager
+            />
+
             <div className="absolute inset-x-0 bottom-0 p-6 md:p-10 bg-gradient-to-t from-ink/90 via-ink/40 to-transparent">
               <div className="flex items-center gap-1.5 text-brand font-mono text-xs tracking-widest uppercase">
                 <MapPin className="w-3.5 h-3.5" />
@@ -54,7 +62,14 @@ export default function DestinationDetailPage() {
                   className="group flex gap-4 items-center bg-white border-2 border-ink/10 rounded-2xl p-3 hover:border-brand hover:shadow-lg transition-all"
                 >
                   <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0">
-                    <Scene kind={p.scene} className="w-full h-full" />
+                    
+                    <Photo
+                      photo={packagePhoto(p.slug)}
+                      alt={`${p.name} package`}
+                      scene={p.scene}
+                      className="w-full h-full"
+                    />
+
                   </div>
                   <div>
                     <span className="font-mono text-[10px] tracking-widest uppercase text-brand-deep">{p.tagline}</span>

@@ -1,5 +1,6 @@
 
 import { useEffect } from "react"
+import AccountPage from "./pages/AccountPage"
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom"
 import { useLenis } from "lenis/react"
 import { ClickSpark } from "./components/ClickSpark"
@@ -26,6 +27,7 @@ import PackagesPage from "./pages/PackagesPage"
 import PackageDetailPage from "./pages/PackageDetailPage"
 import DestinationsPage from "./pages/DestinationsPage"
 import DestinationDetailPage from "./pages/DestinationDetailPage"
+import AdminBookingsPage from "./pages/AdminBookingsPage"
 
 function Landing() {
   const { hash } = useLocation()
@@ -108,10 +110,28 @@ export default function App() {
             />
 
             <Route
+              path="/account"
+              element={
+                <RequireAuth>
+                  <AccountPage />
+                </RequireAuth>
+              }
+            />
+
+            <Route
               path="/admin"
               element={
                 <RequireAuth admin>
                   <AdminPage />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/admin/bookings"
+              element={
+                <RequireAuth admin>
+                  <AdminBookingsPage />
                 </RequireAuth>
               }
             />

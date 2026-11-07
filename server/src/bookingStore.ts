@@ -1,64 +1,73 @@
+import type { Addon } from "./pricing.js"
 
-import type { Addon, PriceResult } from "./pricing.js"
-
-export type BookingStatus =
-  | "pending"
-  | "confirmed"
-  | "rejected"
-  | "cancelled"
-
-export interface CreateBookingInput {
-  userId: string
-  packageId: number
-  destinationId: number
-  bookingDate: string
-  guests: number
-  addonIds: number[]
-  totalPrice: number
-  priceBreakdown: PriceResult
-}
-
-export interface BookingRecord {
-  id: string
+export interface NewBooking {
   reference: string
   userId: string
   packageId: number
   destinationId: number
-  bookingDate: string
+  packageName: string
+  destinationName: string
+  date: string
   guests: number
-  addonIds: number[]
+  mealOption: string | null
   totalPrice: number
-  status: BookingStatus
+  addons: Addon[]
+}
+
+export interface BookingRecord {
+  reference: string
+  userId: string
+  packageName: string
+  destinationName: string
+  date: string
+  guests: number
+  mealOption: string | null
+  addons: { name: string }[]
+  totalPrice: number
+  status: "pending" | "confirmed" | "rejected" | "cancelled"
+  paymentStatus: "unpaid" | "paid" | "refunded"
   createdAt: string
 }
 
-export interface AvailabilityInput {
-  packageId: number
-  destinationId: number
-  date: string
+export interface Customer {
+  name: string | null
+  email: string | null
+  phone: string | null
 }
 
-export interface AvailabilityResult {
-  available: boolean
-  remaining: number
-  limit: number
-  booked: number
+/** A booking plus who made it. Only admins ever see this. */
+export interface AdminBooking extends BookingRecord {
+  customer: Customer
 }
 
-/**
- * Storage contract used by the API.
- * Memory and Supabase implementations provide the actual database operations.
- */
+export interface BookingChange {
+  status?: BookingRecord["status"]
+  paymentStatus?: BookingRecord["paymentStatus"]
+}
+
+export class FullyBookedError extends Error {}
+export class DuplicateReferenceError extends Error {}
+
 export interface BookingStore {
   listAddons(): Promise<Addon[]>
+  /** limit = per-date override from daily_limits (null if none); taken = pending + confirmed bookings. */
+  availability(packageId: number, destinationId: number, date: string): Promise<{ limit: number | null; taken: number }>
+  /** Must check the limit and insert atomically. Throws FullyBookedError / DuplicateReferenceError. */
+  createBooking(input: NewBooking, defaultLimit: number): Promise<BookingRecord>
+  listForUser(userId: string): Promise<BookingRecord[]>
+  findForUser(userId: string, reference: string): Promise<BookingRecord | null>
 
-  checkAvailability(
-    input: AvailabilityInput,
-  ): Promise<AvailabilityResult>
-
-  createBooking(
-    input: CreateBookingInput,
-  ): Promise<BookingRecord>
-
-  listBookingsForUser(userId: string): Promise<BookingRecord[]>
+  // ---- admin ----
+  /** Newest first. */
+  listAll(limit: number): Promise<AdminBooking[]>
+  findByReference(reference: string): Promise<AdminBooking | null>
+  /**
+   * Applies the change only if the booking still has the status and payment the admin was looking at.
+   * Returns null when it was changed in the meantime (or does not exist).
+   */
+  updateBooking(
+    reference: string,
+    seen: { status: BookingRecord["status"]; paymentStatus: BookingRecord["paymentStatus"] },
+    change: BookingChange,
+  ): Promise<AdminBooking | null>
 }

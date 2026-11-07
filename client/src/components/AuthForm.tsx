@@ -1,8 +1,10 @@
-
+import { useState } from "react"
 import type {
   InputHTMLAttributes,
   ReactNode,
 } from "react"
+
+import { Eye, EyeOff } from "lucide-react"
 
 export function AuthCard({
   title,
@@ -60,6 +62,52 @@ export function Field({
         {...props}
         className="w-full border-2 border-ink/10 rounded-xl px-4 py-3 font-mono text-sm bg-white focus:outline-none focus:border-brand transition-colors"
       />
+
+      {hint && (
+        <p className="font-mono text-xs text-ink/50 mt-1">
+          {hint}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Password input with a show/hide button. Use instead of <Field type="password">. */
+export function PasswordField({
+  label,
+  hint,
+  id,
+  ...props
+}: Omit<FieldProps, "type">) {
+  const [show, setShow] = useState(false)
+
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="block text-sm font-bold mb-1.5"
+      >
+        {label}
+      </label>
+
+      <div className="relative">
+        <input
+          id={id}
+          {...props}
+          type={show ? "text" : "password"}
+          className="w-full border-2 border-ink/10 rounded-xl pl-4 pr-12 py-3 font-mono text-sm bg-white focus:outline-none focus:border-brand transition-colors"
+        />
+
+        <button
+          type="button"
+          onClick={() => setShow((v) => !v)}
+          aria-label={show ? "Hide password" : "Show password"}
+          aria-pressed={show}
+          className="absolute inset-y-0 right-0 px-4 text-ink/50 hover:text-ink transition-colors"
+        >
+          {show ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
 
       {hint && (
         <p className="font-mono text-xs text-ink/50 mt-1">

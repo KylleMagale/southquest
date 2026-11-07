@@ -4,7 +4,8 @@ import { motion, useInView, type Variants } from "framer-motion"
 import { MapPin } from "lucide-react"
 import { Link } from "react-router-dom"
 import { destinations } from "../data/content"
-import { Scene } from "./Scene"
+import { destinationPhoto } from "../lib/photos"
+import { Photo } from "./Photo"
 
 const container: Variants = {
   hidden: { opacity: 0 },
@@ -107,9 +108,11 @@ export function DestinationsSection() {
                 className="absolute inset-0 z-20"
               />
 
-              <Scene
-                kind={destination.scene}
-                className="absolute inset-0 w-full h-full grayscale group-hover:grayscale-0 transition-all duration-500"
+              <Photo
+                photo={destinationPhoto(destination.slug)}
+                alt={`${destination.name} campsite`}
+                scene={destination.scene}
+                className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
               />
 
               <div className="absolute inset-0 bg-brand/0 group-hover:bg-brand/20 transition-colors duration-300" />

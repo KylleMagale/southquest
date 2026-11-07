@@ -1,4 +1,3 @@
-
 export interface Addon {
   id: number
   name: string
@@ -15,50 +14,35 @@ export interface PriceLine {
 }
 
 export interface PriceResult {
-  total: number
   lines: PriceLine[]
+  total: number
 }
 
-interface CalculatePriceInput {
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
+
+/**
+ * Total = package price + add-ons.
+ *  - package: per_guest -> basePrice x guests, flat -> basePrice
+ *  - add-on:  per_guest -> price x guests,     per_booking -> price
+ * This is the only place prices are calculated; the browser never sends a price.
+ */
+export function calculatePrice(input: {
   pricingType: "per_guest" | "flat"
   basePrice: number
   guests: number
   addons: Addon[]
-}
-
-export function calculatePrice(input: CalculatePriceInput): PriceResult {
+}): PriceResult {
   const { pricingType, basePrice, guests, addons } = input
 
-  const lines: PriceLine[] = []
-  const packageQuantity = pricingType === "per_guest" ? guests : 1
-
-  lines.push({
-    label: "Package",
-    quantity: packageQuantity,
-    unitPrice: basePrice,
-    total: packageQuantity * basePrice,
+  const line = (label: string, quantity: number, unitPrice: number): PriceLine => ({
+    label,
+    quantity,
+    unitPrice,
+    total: round2(quantity * unitPrice),
   })
 
-  for (const addon of addons) {
-    const quantity = addon.priceType === "per_guest" ? guests : 1
+  const lines: PriceLine[] = [line("Package", pricingType === "per_guest" ? guests : 1, basePrice)]
+  for (const a of addons) lines.push(line(a.name, a.priceType === "per_guest" ? guests : 1, a.price))
 
-    lines.push({
-      label: addon.name,
-      quantity,
-      unitPrice: addon.price,
-      total: quantity * addon.price,
-    })
-  }
-
-  const total = Math.round(
-    (lines.reduce((sum, line) => sum + line.total, 0) + Number.EPSILON) * 100,
-  ) / 100
-
-  return {
-    total,
-    lines: lines.map((line) => ({
-      ...line,
-      total: Math.round((line.total + Number.EPSILON) * 100) / 100,
-    })),
-  }
+  return { lines, total: round2(lines.reduce((sum, l) => sum + l.total, 0)) }
 }
