@@ -73,10 +73,57 @@ export interface Availability {
   reason?: string
 }
 
+
+export type PaymentMethod = "gcash" | "card" | "cash"
+
+export const paymentLabel: Record<PaymentMethod, string> = {
+  gcash: "GCash (demo)",
+  card: "Card (demo)",
+  cash: "Pay at the campsite",
+}
+
+export interface Review {
+  id: number
+  reference: string
+  rating: number
+  comment: string
+  status: "pending" | "approved" | "hidden"
+  createdAt: string
+}
+
+export interface PublicReview {
+  id: number
+  rating: number
+  comment: string
+  firstName: string
+  packageName: string
+  createdAt: string
+}
+
+export interface AdminReview extends Review {
+  customerName: string | null
+  packageName: string
+}
+
+export interface Inquiry {
+  id: number
+  name: string
+  email: string
+  phone: string | null
+  message: string
+  status: "new" | "read"
+  createdAt: string
+}
+
 export interface Booking {
   reference: string
   status: "pending" | "confirmed" | "rejected" | "cancelled"
   paymentStatus: "unpaid" | "paid" | "refunded"
+  /** null for bookings made before payment methods existed. */
+  paymentMethod: PaymentMethod | null
+  /** Only on the customer's own bookings. */
+  review?: Review | null
+  reviewable?: boolean
   packageName: string
   destinationName: string
   date: string

@@ -113,12 +113,15 @@ export function Footer() {
 
         <div className="flex flex-col md:flex-row justify-between items-center pt-6 border-t border-white/10 gap-3">
           <motion.span
-            className="text-xl font-black"
+            className="flex items-center gap-2 text-xl font-black"
             whileHover={{ scale: 1.05 }}
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
           >
-            <span className="text-white">{brand.first}</span>
-            <span className="text-brand">{brand.second}</span>
+            <img src="/images/logo.png" alt="" width={36} height={36} className="h-9 w-9 object-contain" />
+            <span>
+              <span className="text-white">{brand.first}</span>
+              <span className="text-brand">{brand.second}</span>
+            </span>
           </motion.span>
 
           <p className="text-white/40 font-mono text-xs">

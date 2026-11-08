@@ -15,7 +15,7 @@ import { HowItWorks } from "./components/HowItWorks"
 import { FaqSection } from "./components/FaqSection"
 import { Footer } from "./components/Footer"
 import { AuthProvider } from "./lib/AuthContext"
-import { RequireAuth } from "./components/RequireAuth"
+import { NotForAdmins, RequireAuth } from "./components/RequireAuth"
 import LoginPage from "./pages/LoginPage"
 import RegisterPage from "./pages/RegisterPage"
 import MyBookingPage from "./pages/MyBookingPage"
@@ -32,6 +32,12 @@ import AdminPackagesPage from "./pages/AdminPackagesPage"
 import AdminDestinationsPage from "./pages/AdminDestinationsPage"
 import AdminAddonsPage from "./pages/AdminAddonsPage"
 import AdminAvailabilityPage from "./pages/AdminAvailabilityPage"
+import AdminInquiriesPage from "./pages/AdminInquiriesPage"
+import AdminReviewsPage from "./pages/AdminReviewsPage"
+import AboutPage from "./pages/AboutPage"
+import FaqsPage from "./pages/FaqsPage"
+import ContactPage from "./pages/ContactPage"
+import ReviewsPage from "./pages/ReviewsPage"
 
 function Landing() {
   const { hash } = useLocation()
@@ -62,7 +68,7 @@ function Landing() {
 
   return (
     <main className="min-h-screen bg-white">
-      <Navigation />
+      <Navigation overHero />
       <HeroSection />
       <PackageCarousel />
       <IncludedGrid />
@@ -97,6 +103,10 @@ export default function App() {
         <LenisProvider>
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/faqs" element={<FaqsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/reviews" element={<ReviewsPage />} />
             <Route path="/packages" element={<PackagesPage />} />
             <Route path="/packages/:slug" element={<PackageDetailPage />} />
             <Route path="/destinations" element={<DestinationsPage />} />
@@ -144,14 +154,17 @@ export default function App() {
             <Route path="/admin/destinations" element={<RequireAuth admin><AdminDestinationsPage /></RequireAuth>} />
             <Route path="/admin/addons" element={<RequireAuth admin><AdminAddonsPage /></RequireAuth>} />
             <Route path="/admin/availability" element={<RequireAuth admin><AdminAvailabilityPage /></RequireAuth>} />
-
-            <Route path="/builder" element={<BuilderPage />} />
+            <Route path="/admin/inquiries" element={<RequireAuth admin><AdminInquiriesPage /></RequireAuth>} />
+            <Route path="/admin/reviews" element={<RequireAuth admin><AdminReviewsPage /></RequireAuth>} />
+            <Route path="/builder" element={<NotForAdmins><BuilderPage /></NotForAdmins>} />
 
             <Route
               path="/booking/review"
               element={
                 <RequireAuth>
-                  <BookingReviewPage />
+                  <NotForAdmins>
+                    <BookingReviewPage />
+                  </NotForAdmins>
                 </RequireAuth>
               }
             />
@@ -160,7 +173,9 @@ export default function App() {
               path="/booking/confirmation/:reference"
               element={
                 <RequireAuth>
-                  <BookingConfirmationPage />
+                  <NotForAdmins>
+                    <BookingConfirmationPage />
+                  </NotForAdmins>
                 </RequireAuth>
               }
             />

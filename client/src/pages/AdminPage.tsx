@@ -27,6 +27,16 @@ const sections = [
     note: "Daily booking limits and closed dates",
     to: "/admin/availability",
   },
+  {
+    title: "Inquiries",
+    note: "Messages from the Contact page",
+    to: "/admin/inquiries",
+  },
+  {
+    title: "Reviews",
+    note: "Approve or hide customer reviews",
+    to: "/admin/reviews",
+  },
 ]
 
 export default function AdminPage() {

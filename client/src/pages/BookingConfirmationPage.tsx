@@ -4,7 +4,7 @@ import { ErrorState, LoadingState, NotFoundState, PageShell } from "../component
 import { StatusBadge } from "../components/StatusBadge"
 import { useApi } from "../lib/api"
 import { formatDate, peso } from "../lib/format"
-import type { Booking } from "../lib/types"
+import { paymentLabel, type Booking } from "../lib/types"
 
 export default function BookingConfirmationPage() {
   const { reference = "" } = useParams()
@@ -77,7 +77,10 @@ export default function BookingConfirmationPage() {
               )}
 
               <dt className="text-ink/50">Payment</dt>
-              <dd className="font-bold text-right capitalize">{data.paymentStatus}</dd>
+              <dd className="font-bold text-right">
+                <span className="capitalize">{data.paymentStatus}</span>
+                {data.paymentMethod && <span className="block font-normal text-ink/60">{paymentLabel[data.paymentMethod]}</span>}
+              </dd>
 
               <dt className="text-ink/50 pt-3 border-t border-ink/10">Total</dt>
               <dd className="font-black text-xl text-right pt-3 border-t border-ink/10">

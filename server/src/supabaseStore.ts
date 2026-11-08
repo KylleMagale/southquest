@@ -8,12 +8,20 @@ import {
   type Customer,
   type NewBooking,
 } from "./bookingStore.js"
+import {
+  DuplicateReviewError,
+  type AdminReview,
+  type EngageStore,
+  type Inquiry,
+  type PublicReview,
+  type Review,
+} from "./engageStore.js"
 import type { Addon } from "./pricing.js"
 import type { AdminAddon, AdminDestination, AdminPackage, ContentStore } from "./contentStore.js"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const BOOKING_SELECT =
-  "reference, user_id, booking_date, guests, meal_option, total_price, status, payment_status, created_at, " +
+  "reference, user_id, booking_date, guests, meal_option, total_price, status, payment_status, payment_method, created_at, " +
   "packages(name), destinations(name), booking_addons(addons(name))"
 
 const toRecord = (row: any): BookingRecord => ({
@@ -28,6 +36,7 @@ const toRecord = (row: any): BookingRecord => ({
   totalPrice: Number(row.total_price),
   status: row.status,
   paymentStatus: row.payment_status,
+  paymentMethod: row.payment_method ?? null,
   createdAt: row.created_at,
 })
 
@@ -111,7 +120,42 @@ const toAdminAddon = (r: any): AdminAddon => ({
     status: "status",
   }
 
-export function createSupabaseStore(db: SupabaseClient): BookingStore & ContentStore {
+const REVIEW_SELECT = "id, user_id, rating, comment, status, created_at, bookings(reference, packages(name))"
+
+const toReview = (r: any): Review => ({
+  id: r.id,
+  reference: r.bookings?.reference ?? "",
+  rating: r.rating,
+  comment: r.comment,
+  status: r.status,
+  createdAt: r.created_at,
+})
+
+const toInquiry = (r: any): Inquiry => ({
+  id: r.id,
+  name: r.name,
+  email: r.email,
+  phone: r.phone,
+  message: r.message,
+  status: r.status,
+  createdAt: r.created_at,
+})
+
+export function createSupabaseStore(db: SupabaseClient): BookingStore & ContentStore & EngageStore {
+
+  /** user id -> full name, from `profiles`. */
+  async function namesOf(userIds: string[]): Promise<Map<string, string | null>> {
+    const ids = [...new Set(userIds)]
+    const names = new Map<string, string | null>()
+    if (!ids.length) return names
+
+    const { data, error } = await db.from("profiles").select("id, full_name").in("id", ids)
+    if (error) throw new Error(error.message)
+
+    for (const p of data as any[]) names.set(p.id, p.full_name)
+    return names
+  }
+
   /** Name and phone come from `profiles`, the email from Supabase Auth. */
   async function withCustomers(records: BookingRecord[]): Promise<AdminBooking[]> {
     const ids = [...new Set(records.map((r) => r.userId))]
@@ -132,7 +176,7 @@ export function createSupabaseStore(db: SupabaseClient): BookingStore & ContentS
     return records.map((r) => ({ ...r, customer: customers.get(r.userId) ?? { name: null, phone: null, email: null } }))
   }
 
-      async function readPackage(id: number): Promise<AdminPackage | null> {
+  async function readPackage(id: number): Promise<AdminPackage | null> {
     const { data, error } = await db.from("packages").select(PACKAGE_ROW).eq("id", id).maybeSingle()
     if (error) throw new Error(error.message)
     return data ? toAdminPackage(data) : null
@@ -205,6 +249,8 @@ export function createSupabaseStore(db: SupabaseClient): BookingStore & ContentS
         p_guests: input.guests,
         p_meal_option: input.mealOption,
         p_total_price: input.totalPrice,
+        p_payment_method: input.paymentMethod,
+        p_payment_status: input.paymentStatus,
         p_addon_ids: input.addons.map((a) => a.id),
         p_default_limit: defaultLimit,
       })
@@ -386,6 +432,7 @@ export function createSupabaseStore(db: SupabaseClient): BookingStore & ContentS
       if (error) throw new Error(error.message)
     },
 
+    
     async clearLimit(packageId, destinationId, date) {
       const { error } = await db
         .from("daily_limits")
@@ -394,6 +441,110 @@ export function createSupabaseStore(db: SupabaseClient): BookingStore & ContentS
         .eq("destination_id", destinationId)
         .eq("limit_date", date)
       if (error) throw new Error(error.message)
+    },
+
+    // ---- inquiries and reviews ----
+    async createInquiry(input) {
+      const { error } = await db
+        .from("inquiries")
+        .insert({ name: input.name, email: input.email, phone: input.phone, message: input.message })
+      if (error) throw new Error(error.message)
+    },
+
+    async listInquiries(limit) {
+      const { data, error } = await db.from("inquiries").select("*").order("created_at", { ascending: false }).limit(limit)
+      if (error) throw new Error(error.message)
+      return (data as any[]).map(toInquiry)
+    },
+
+    async setInquiryStatus(id, status) {
+      const { data, error } = await db.from("inquiries").update({ status }).eq("id", id).select("*").maybeSingle()
+      if (error) throw new Error(error.message)
+      return data ? toInquiry(data) : null
+    },
+
+    async createReview(userId, reference, rating, comment) {
+      const found = await db.from("bookings").select("id").eq("user_id", userId).eq("reference", reference).maybeSingle()
+      if (found.error) throw new Error(found.error.message)
+      if (!found.data) return null
+
+      const { data, error } = await db
+        .from("reviews")
+        .insert({ booking_id: found.data.id, user_id: userId, rating, comment })
+        .select(REVIEW_SELECT)
+        .single()
+
+      if (error) {
+        if (error.code === "23505") throw new DuplicateReviewError()
+        throw new Error(error.message)
+      }
+      return toReview(data)
+    },
+
+    async listReviewsForUser(userId) {
+      const { data, error } = await db.from("reviews").select(REVIEW_SELECT).eq("user_id", userId)
+      if (error) throw new Error(error.message)
+      return (data as any[]).map(toReview)
+    },
+
+    async listPublicReviews(limit) {
+      const { data, error } = await db
+        .from("reviews")
+        .select(REVIEW_SELECT)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(limit)
+
+      if (error) throw new Error(error.message)
+
+      const rows = data as any[]
+      const names = await namesOf(rows.map((r) => r.user_id))
+
+      return rows.map(
+        (r): PublicReview => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment,
+          firstName: names.get(r.user_id)?.trim().split(/\s+/)[0] || "Guest",
+          packageName: r.bookings?.packages?.name ?? "",
+          createdAt: r.created_at,
+        }),
+      )
+    },
+
+    async listAllReviews(limit) {
+      const { data, error } = await db
+        .from("reviews")
+        .select(REVIEW_SELECT)
+        .order("created_at", { ascending: false })
+        .limit(limit)
+
+      if (error) throw new Error(error.message)
+
+      const rows = data as any[]
+      const names = await namesOf(rows.map((r) => r.user_id))
+
+      return rows.map(
+        (r): AdminReview => ({
+          ...toReview(r),
+          customerName: names.get(r.user_id) ?? null,
+          packageName: r.bookings?.packages?.name ?? "",
+        }),
+      )
+    },
+
+    async setReviewStatus(id, status) {
+      const { data, error } = await db.from("reviews").update({ status }).eq("id", id).select(REVIEW_SELECT).maybeSingle()
+      if (error) throw new Error(error.message)
+      if (!data) return null
+
+      const names = await namesOf([data.user_id])
+
+      return {
+        ...toReview(data),
+        customerName: names.get(data.user_id) ?? null,
+        packageName: (data as any).bookings?.packages?.name ?? "",
+      }
     },
   }
 }

@@ -13,11 +13,12 @@ export const brand = {
 
 export const navLinks = [
   { label: "Home", to: "/" },
+  { label: "About", to: "/about" },
   { label: "Packages", to: "/packages" },
-  { label: "What's Included", to: "/#included" },
   { label: "Destinations", to: "/destinations" },
-  { label: "How It Works", to: "/#how" },
-  { label: "FAQs", to: "/#faq" },
+  { label: "Reviews", to: "/reviews" },
+  { label: "FAQs", to: "/faqs" },
+  { label: "Contact", to: "/contact" },
 ]
 
 export const heroBenefits = ["Gear Included", "Meals Included", "Setup Done For You", "Book Online"]

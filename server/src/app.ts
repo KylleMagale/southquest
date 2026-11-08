@@ -9,7 +9,10 @@ import {
   type BookingChange,
   type BookingRecord,
   type BookingStore,
+  PAYMENT_METHODS,
+  type PaymentMethod,
 } from "./bookingStore.js"
+import { DuplicateReviewError, type EngageStore, type InquiryStatus, type Review, type ReviewStatus } from "./engageStore.js"
 import { contentRouter } from "./contentRoutes.js"
 import type { ContentStore } from "./contentStore.js"
 import { BadRequest } from "./errors.js"
@@ -30,6 +33,12 @@ export interface Deps {
   /** Packages, destinations, add-ons and daily limits edited by admins. */
   content: ContentStore
 
+  /** Contact inquiries and customer reviews. */
+  engage: EngageStore
+
+  /** Let customers review before the trip date (handy for demos). Default: only after the trip date. */
+  allowEarlyReviews?: boolean
+
   requireAuth: RequestHandler
   /** Same as requireAuth, but only lets admins through (403 for everyone else). */
   requireAdmin: RequestHandler
@@ -46,6 +55,11 @@ const newReference = () => "SQ-" + Array.from({ length: 6 }, () => REF_ALPHABET[
 
 const MAX_GUESTS = 100
 const ADMIN_LIST_LIMIT = 500
+
+const REVIEW_STATUSES: ReviewStatus[] = ["pending", "approved", "hidden"]
+const INQUIRY_STATUSES: InquiryStatus[] = ["new", "read"]
+const PUBLIC_REVIEW_LIMIT = 50
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const STATUSES = ["pending", "confirmed", "rejected", "cancelled"] as const
 const PAYMENT_STATUSES = ["unpaid", "paid", "refunded"] as const
@@ -79,7 +93,7 @@ export function checkChange(current: BookingRecord, change: BookingChange): stri
 }
 
 export function createApp(deps: Deps) {
-  const { catalog, store, content, requireAuth, requireAdmin } = deps
+  const { catalog, store, content, engage, requireAuth, requireAdmin } = deps
   const today = deps.today ?? todayInManila
   const app = express()
 
@@ -137,6 +151,7 @@ export function createApp(deps: Deps) {
     reference: b.reference,
     status: b.status,
     paymentStatus: b.paymentStatus,
+    paymentMethod: b.paymentMethod,
     packageName: b.packageName,
     destinationName: b.destinationName,
     date: b.date,
@@ -219,6 +234,16 @@ export function createApp(deps: Deps) {
     }),
   )
 
+  /** The customer's own bookings, each with its review (if any) and whether a review can be written now. */
+  const withReviews = async (userId: string, list: BookingRecord[]) => {
+    const mine = await engage.listReviewsForUser(userId)
+    return list.map((b) => {
+      const review: Review | null = mine.find((r) => r.reference === b.reference) ?? null
+      const tripDone = b.date <= today() || deps.allowEarlyReviews === true
+      return { ...toDto(b), review, reviewable: b.status === "confirmed" && !review && tripDone }
+    })
+  }
+
   const toAdminDto = (b: AdminBooking) => ({ ...toDto(b), customer: b.customer })
 
   // ---------- signed-in ----------
@@ -243,6 +268,8 @@ export function createApp(deps: Deps) {
       const guests = guestsOf(req.body?.guests)
       const date = str(req.body?.date, "date")
       const addons = await loadAddons(addonIdsOf(req.body?.addonIds))
+      const method = req.body?.paymentMethod
+      if (!PAYMENT_METHODS.includes(method)) throw new BadRequest("Choose a payment method")
 
       if (pkg.basePrice === null) throw new BadRequest("Pricing for this package has not been set yet.", 409)
       const avail = await checkAvailability(pkg, str(req.body?.destinationSlug, "destinationSlug"), date, guests)
@@ -267,10 +294,13 @@ export function createApp(deps: Deps) {
               mealOption: meals.length ? meals.join(", ") : null,
               totalPrice: total,
               addons,
+              // Demo payment: no real money moves. Online methods count as paid at once; cash is paid on arrival.
+              paymentMethod: method as PaymentMethod,
+              paymentStatus: method === "cash" ? "unpaid" : "paid",
             },
             deps.defaultDailyLimit,
           )
-          res.status(201).json(toDto(booking))
+          res.status(201).json((await withReviews(user.id, [booking]))[0])
           return
         } catch (err) {
           if (err instanceof FullyBookedError) throw new BadRequest("Fully booked on that date. Please try another date.", 409)
@@ -286,8 +316,8 @@ export function createApp(deps: Deps) {
     "/api/bookings/mine",
     requireAuth,
     wrap(async (_req, res) => {
-      const list = await store.listForUser((res.locals.user as { id: string }).id)
-      res.json(list.map(toDto))
+      const userId = (res.locals.user as { id: string }).id
+      res.json(await withReviews(userId, await store.listForUser(userId)))
     }),
   )
 
@@ -295,12 +325,70 @@ export function createApp(deps: Deps) {
     "/api/bookings/:reference",
     requireAuth,
     wrap(async (req, res) => {
-      const found = await store.findForUser((res.locals.user as { id: string }).id, req.params.reference)
+      const userId = (res.locals.user as { id: string }).id
+      const found = await store.findForUser(userId, req.params.reference)
       if (!found) {
         res.status(404).json({ error: "Booking not found" })
         return
       }
-      res.json(toDto(found))
+      res.json((await withReviews(userId, [found]))[0])
+    }),
+  )
+
+  // ---------- reviews ----------
+  app.get("/api/reviews", wrap(async (_req, res) => void res.json(await engage.listPublicReviews(PUBLIC_REVIEW_LIMIT))))
+
+  app.post(
+    "/api/bookings/:reference/review",
+    requireAuth,
+    wrap(async (req, res) => {
+      const userId = (res.locals.user as { id: string }).id
+      const booking = await store.findForUser(userId, req.params.reference)
+      if (!booking) throw new BadRequest("Booking not found", 404)
+
+      const rating = req.body?.rating
+      if (typeof rating !== "number" || !Number.isInteger(rating) || rating < 1 || rating > 5)
+        throw new BadRequest("Please give a rating from 1 to 5 stars")
+      const comment = typeof req.body?.comment === "string" ? req.body.comment.trim() : ""
+      if (comment.length < 5) throw new BadRequest("Please write a short comment (at least 5 characters)")
+      if (comment.length > 1000) throw new BadRequest("Please keep your comment under 1000 characters")
+
+      if (booking.status !== "confirmed") throw new BadRequest("You can review a trip once it has been confirmed.", 409)
+      if (booking.date > today() && deps.allowEarlyReviews !== true)
+        throw new BadRequest("You can leave a review once your trip date has passed.", 409)
+
+      try {
+        const review = await engage.createReview(userId, booking.reference, rating, comment)
+        if (!review) throw new BadRequest("Booking not found", 404)
+        res.status(201).json(review)
+      } catch (err) {
+        if (err instanceof DuplicateReviewError) throw new BadRequest("You already reviewed this booking.", 409)
+        throw err
+      }
+    }),
+  )
+
+  // ---------- contact form ----------
+  app.post(
+    "/api/inquiries",
+    wrap(async (req, res) => {
+      // Hidden "website" field: people never fill it in, simple bots do. Pretend it worked.
+      if (typeof req.body?.website === "string" && req.body.website.trim()) {
+        res.status(201).json({ ok: true })
+        return
+      }
+      const name = str(req.body?.name, "Name")
+      const email = str(req.body?.email, "Email")
+      const message = str(req.body?.message, "Message")
+      const phone = typeof req.body?.phone === "string" && req.body.phone.trim() ? req.body.phone.trim() : null
+      if (name.length > 100) throw new BadRequest("Name is too long")
+      if (!EMAIL.test(email) || email.length > 200) throw new BadRequest("Please enter a valid email address")
+      if (phone && phone.length > 40) throw new BadRequest("Phone number is too long")
+      if (message.length < 10) throw new BadRequest("Please write a little more (at least 10 characters)")
+      if (message.length > 2000) throw new BadRequest("Please keep your message under 2000 characters")
+
+      await engage.createInquiry({ name, email, phone, message })
+      res.status(201).json({ ok: true })
     }),
   )
 
@@ -352,18 +440,54 @@ export function createApp(deps: Deps) {
     }),
   )
 
-    app.use(
-  "/api/admin",
-  contentRouter({
-    content,
-    bookings: store,
+  app.get(
+    "/api/admin/inquiries",
     requireAdmin,
-    defaultDailyLimit: deps.defaultDailyLimit,
-    today,
-  }),
-)
+    wrap(async (_req, res) => void res.json(await engage.listInquiries(ADMIN_LIST_LIMIT))),
+  )
 
-    app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  app.patch(
+    "/api/admin/inquiries/:id",
+    requireAdmin,
+    wrap(async (req, res) => {
+      const status = req.body?.status
+      if (!INQUIRY_STATUSES.includes(status)) throw new BadRequest("Unknown status")
+      const updated = await engage.setInquiryStatus(Number(req.params.id), status)
+      if (!updated) throw new BadRequest("Inquiry not found", 404)
+      res.json(updated)
+    }),
+  )
+
+  app.get(
+    "/api/admin/reviews",
+    requireAdmin,
+    wrap(async (_req, res) => void res.json(await engage.listAllReviews(ADMIN_LIST_LIMIT))),
+  )
+
+  app.patch(
+    "/api/admin/reviews/:id",
+    requireAdmin,
+    wrap(async (req, res) => {
+      const status = req.body?.status
+      if (!REVIEW_STATUSES.includes(status)) throw new BadRequest("Unknown status")
+      const updated = await engage.setReviewStatus(Number(req.params.id), status)
+      if (!updated) throw new BadRequest("Review not found", 404)
+      res.json(updated)
+    }),
+  )
+
+  app.use(
+    "/api/admin",
+    contentRouter({
+      content,
+      bookings: store,
+      requireAdmin,
+      defaultDailyLimit: deps.defaultDailyLimit,
+      today,
+    }),
+  )
+
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof BadRequest) {
       res.status(err.status).json({ error: err.message })
       return

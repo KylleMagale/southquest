@@ -4,7 +4,7 @@ import { ErrorState, PageShell } from "../components/PageShell"
 import { PaymentBadge, StatusBadge } from "../components/StatusBadge"
 import { apiFetch, ApiError } from "../lib/api"
 import { formatDate, peso } from "../lib/format"
-import type { AdminBooking } from "../lib/types"
+import { paymentLabel, type AdminBooking } from "../lib/types"
 
 type Tab = "all" | AdminBooking["status"]
 type Sort = "newest" | "trip"
@@ -254,6 +254,9 @@ export default function AdminBookingsPage() {
                         <p className="font-mono text-xs text-ink/60 mt-1">
                           {formatDate(b.date)} · {b.guests} {b.guests === 1 ? "guest" : "guests"}
                         </p>
+                        {b.paymentMethod && (
+                          <p className="font-mono text-xs text-ink/60 mt-1">Payment: {paymentLabel[b.paymentMethod]}</p>
+                        )}
                         {b.addons.length > 0 && (
                           <p className="font-mono text-xs text-ink/60 mt-1">Add-ons: {b.addons.join(", ")}</p>
                         )}
@@ -312,7 +315,7 @@ export default function AdminBookingsPage() {
                         </button>
                       )}
 
-                      {b.status === "confirmed" && b.paymentStatus === "paid" && (
+                      {b.paymentStatus === "paid" && (
                         <>
                           <button
                             className={outline}
@@ -323,9 +326,12 @@ export default function AdminBookingsPage() {
                           >
                             Mark as refunded
                           </button>
-                          <button className={outline} disabled={working} onClick={() => act(b, { paymentStatus: "unpaid" })}>
-                            Undo paid
-                          </button>
+
+                          {b.status === "confirmed" && (
+                            <button className={outline} disabled={working} onClick={() => act(b, { paymentStatus: "unpaid" })}>
+                              Undo paid
+                            </button>
+                          )}
                         </>
                       )}
 
@@ -347,7 +353,12 @@ export default function AdminBookingsPage() {
                         </button>
                       )}
 
-                      {final && <span className="font-mono text-xs text-ink/50">This booking is closed. No further actions.</span>}
+                      {final && b.paymentStatus === "paid" && (
+                        <span className="font-mono text-xs text-amber-800">Closed, but still marked paid. Refund the customer, then mark it refunded.</span>
+                      )}
+                      {final && b.paymentStatus !== "paid" && (
+                        <span className="font-mono text-xs text-ink/50">This booking is closed. No further actions.</span>
+                      )}
 
                       {working && <span className="font-mono text-xs text-ink/60">Saving...</span>}
                     </div>

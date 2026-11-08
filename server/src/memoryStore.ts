@@ -15,6 +15,13 @@ import type {
   ContentStore,
   DateLimit,
 } from "./contentStore.js"
+import {
+  DuplicateReviewError,
+  type AdminReview,
+  type EngageStore,
+  type Inquiry,
+  type Review,
+} from "./engageStore.js"
 import type { Addon } from "./pricing.js"
 import type { Destination, Package } from "./types.js"
 
@@ -32,12 +39,14 @@ export function createMemoryStore(
   initialAddons: Addon[] = [],
   customerOf: (userId: string) => Customer = () => ({ name: null, email: null, phone: null }),
   seed: { packages?: AdminPackage[]; destinations?: AdminDestination[] } = {},
-): BookingStore & ContentStore {
+): BookingStore & ContentStore & EngageStore {
   const bookings: (BookingRecord & { packageId: number; destinationId: number })[] = []
   const addons: AdminAddon[] = initialAddons.map((a) => ({ ...a, status: "active" }))
   const packages: AdminPackage[] = (seed.packages ?? []).map((p) => ({ ...p }))
   const destinations: AdminDestination[] = (seed.destinations ?? []).map((d) => ({ ...d }))
   const limits = new Map<string, number>()
+  const inquiries: Inquiry[] = []
+  const reviews: (Review & { userId: string })[] = []
   const limitKey = (p: number, d: number, date: string) => `${p}:${d}:${date}`
   const nextId = (list: { id: number }[]) => list.reduce((m, x) => Math.max(m, x.id), 0) + 1
 
@@ -52,6 +61,13 @@ export function createMemoryStore(
 
   const strip = ({ packageId: _p, destinationId: _d, ...rest }: (typeof bookings)[number]): BookingRecord => rest
   const toAdmin = (b: (typeof bookings)[number]): AdminBooking => ({ ...strip(b), customer: customerOf(b.userId) })
+
+  const toReview = ({ userId: _u, ...rest }: (typeof reviews)[number]): Review => rest
+  const toAdminReview = (r: (typeof reviews)[number]): AdminReview => ({
+    ...toReview(r),
+    customerName: customerOf(r.userId).name,
+    packageName: bookings.find((b) => b.reference === r.reference)?.packageName ?? "",
+  })
 
   return {
     async listAddons() {
@@ -80,7 +96,8 @@ export function createMemoryStore(
         addons: input.addons.map((a) => ({ name: a.name })),
         totalPrice: input.totalPrice,
         status: "pending" as const,
-        paymentStatus: "unpaid" as const,
+        paymentStatus: input.paymentStatus,
+        paymentMethod: input.paymentMethod,
         createdAt: new Date().toISOString(),
       }
       bookings.push(record)
@@ -113,6 +130,63 @@ export function createMemoryStore(
       if (change.status) found.status = change.status
       if (change.paymentStatus) found.paymentStatus = change.paymentStatus
       return toAdmin(found)
+    },
+
+    // ---- inquiries and reviews ----
+    async createInquiry(input) {
+      inquiries.push({ ...input, id: nextId(inquiries), status: "new", createdAt: new Date().toISOString() })
+    },
+    async listInquiries(limit) {
+      return [...inquiries].reverse().slice(0, limit)
+    },
+    async setInquiryStatus(id, status) {
+      const found = inquiries.find((i) => i.id === id)
+      if (!found) return null
+      found.status = status
+      return { ...found }
+    },
+
+    async createReview(userId, reference, rating, comment) {
+      const booking = bookings.find((b) => b.userId === userId && b.reference === reference)
+      if (!booking) return null
+      if (reviews.some((r) => r.reference === reference)) throw new DuplicateReviewError()
+      const created = {
+        id: nextId(reviews),
+        userId,
+        reference,
+        rating,
+        comment,
+        status: "pending" as const,
+        createdAt: new Date().toISOString(),
+      }
+      reviews.push(created)
+      return toReview(created)
+    },
+    async listReviewsForUser(userId) {
+      return reviews.filter((r) => r.userId === userId).map(toReview)
+    },
+    async listPublicReviews(limit) {
+      return reviews
+        .filter((r) => r.status === "approved")
+        .map((r) => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment,
+          firstName: customerOf(r.userId).name?.trim().split(/\s+/)[0] || "Guest",
+          packageName: bookings.find((b) => b.reference === r.reference)?.packageName ?? "",
+          createdAt: r.createdAt,
+        }))
+        .reverse()
+        .slice(0, limit)
+    },
+    async listAllReviews(limit) {
+      return reviews.map(toAdminReview).reverse().slice(0, limit)
+    },
+    async setReviewStatus(id, status) {
+      const found = reviews.find((r) => r.id === id)
+      if (!found) return null
+      found.status = status
+      return toAdminReview(found)
     },
 
     // ---- content (admin) ----

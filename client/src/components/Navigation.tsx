@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { useLenis } from "lenis/react"
@@ -9,7 +8,8 @@ import { useAuth } from "../lib/AuthContext"
 
 const ease = [0.25, 0.4, 0.25, 1] as const
 
-export function Navigation() {
+/** `overHero`: the bar sits on top of a dark photo, so it uses light text before you scroll. */
+export function Navigation({ overHero = false }: { overHero?: boolean }) {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
   const lenis = useLenis()
@@ -46,8 +46,9 @@ export function Navigation() {
     }
   }
 
-  const textMain = scrolled ? "text-white" : "text-ink"
-  const linkTone = scrolled ? "text-white/80 hover:text-brand" : "text-ink/80 hover:text-ink"
+  const onDark = scrolled || open || overHero
+  const textMain = onDark ? "text-white" : "text-ink"
+  const linkTone = onDark ? "text-white/80 hover:text-brand" : "text-ink/80 hover:text-ink"
 
   const handleLogout = async () => {
     setOpen(false)
@@ -119,26 +120,30 @@ export function Navigation() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <button onClick={() => goTo("/")} className="flex items-center" aria-label={`${brand.first}${brand.second} home`}>
-          <motion.span
-            className="text-2xl font-black tracking-tighter"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
-          >
-            <span className={scrolled || open ? "text-white" : "text-ink"}>{brand.first}</span>
+        <button onClick={() => goTo("/")} className="flex items-center gap-3" aria-label={`${brand.first}${brand.second} home`}>
+          <motion.img
+            src="/images/logo.png"
+            alt=""
+            width={48}
+            height={48}
+            className="h-11 w-11 md:h-12 md:w-12 object-contain"
+            whileHover={{ rotate: 8, scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 300, damping: 15 }}
+          />
 
-            <motion.span
-              className="text-brand"
-              animate={{
-                textShadow: scrolled
-                  ? ["0 0 10px rgba(175,255,0,0.5)", "0 0 20px rgba(175,255,0,0.8)", "0 0 10px rgba(175,255,0,0.5)"]
-                  : "0 0 0 rgba(175,255,0,0)",
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
+          <span className="text-left leading-none">
+            <span className="block text-xl md:text-2xl font-black tracking-tighter">
+              <span className={onDark ? "text-white" : "text-ink"}>{brand.first}</span>
+              <span className="text-brand">{brand.second}</span>
+            </span>
+            <span
+              className={`block mt-1 text-[8px] md:text-[9px] font-mono tracking-[0.28em] uppercase ${
+                onDark ? "text-brand" : "text-ink/60"
+              }`}
             >
-              {brand.second}
-            </motion.span>
-          </motion.span>
+              Outdoor Escapes
+            </span>
+          </span>
         </button>
 
         <div className="hidden xl:flex items-center gap-7">
@@ -147,7 +152,7 @@ export function Navigation() {
               key={item.label}
               onClick={() => goTo(item.to)}
               className={`text-sm font-medium tracking-wide transition-colors relative ${
-                scrolled ? "text-white/80 hover:text-brand" : "text-ink/80 hover:text-ink"
+                onDark ? "text-white/80 hover:text-brand" : "text-ink/80 hover:text-ink"
               }`}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}

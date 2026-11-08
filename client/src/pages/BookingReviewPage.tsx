@@ -5,8 +5,8 @@ import { PageShell } from "../components/PageShell"
 import { PriceBreakdown } from "../components/PriceBreakdown"
 import { ApiError, apiFetch } from "../lib/api"
 import { clearDraft, loadDraft } from "../lib/draft"
-import { formatDate } from "../lib/format"
-import type { Availability, Booking, PriceQuote } from "../lib/types"
+import { formatDate, peso } from "../lib/format"
+import { paymentLabel, type Availability, type Booking, type PaymentMethod, type PriceQuote } from "../lib/types"
 
 export default function BookingReviewPage() {
   const navigate = useNavigate()
@@ -15,6 +15,7 @@ export default function BookingReviewPage() {
   const [avail, setAvail] = useState<Availability | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+    const [method, setMethod] = useState<PaymentMethod>("gcash")
 
   // Re-check price and availability in case anything changed.
   useEffect(() => {
@@ -66,6 +67,7 @@ export default function BookingReviewPage() {
           date: draft.date,
           guests: draft.guests,
           addonIds: draft.addonIds,
+          paymentMethod: method,
         },
       })
 
@@ -114,6 +116,29 @@ export default function BookingReviewPage() {
             <PriceBreakdown quote={quote} emptyText="Calculating price..." />
           </div>
 
+          <fieldset className="border-t border-ink/10 pt-5">
+            <legend className="font-mono text-xs tracking-widest text-ink/60 mb-3">PAYMENT</legend>
+            <div className="space-y-2">
+              {(Object.keys(paymentLabel) as PaymentMethod[]).map((m) => (
+                <label
+                  key={m}
+                  className={`flex items-center gap-3 border-2 rounded-xl px-4 py-3 cursor-pointer transition-colors ${
+                    method === m ? "border-brand bg-brand/10" : "border-ink/10 hover:border-ink/30"
+                  }`}
+                >
+                  <input type="radio" name="payment" value={m} checked={method === m} onChange={() => setMethod(m)} className="accent-ink" />
+                  <span className="font-bold text-sm">{paymentLabel[m]}</span>
+                  <span className="ml-auto font-mono text-xs text-ink/50">
+                    {m === "cash" ? "Pay when you arrive" : "Paid now"}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="font-mono text-[11px] text-ink/50 mt-3">
+              Demo payment only. No real money is charged and no card details are collected.
+            </p>
+          </fieldset>
+
           {unavailable && (
             <div
               role="alert"
@@ -153,7 +178,13 @@ export default function BookingReviewPage() {
               disabled={busy || !ready}
               className="flex-1 bg-brand text-ink px-6 py-3.5 rounded-full font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {busy ? "Submitting..." : "Submit booking"}
+              {busy
+                ? "Submitting..."
+                : method === "cash"
+                  ? "Submit booking"
+                  : quote?.priceAvailable
+                    ? `Pay ${peso(quote.total)} (demo) and submit`
+                    : "Pay (demo) and submit"}
             </button>
           </div>
 

@@ -27,6 +27,7 @@ describe("admin content API", () => {
       catalog: createMemoryCatalog(store),
       store,
       content: store,
+      engage: store,
       requireAuth: (req, res, next) => {
         const t = tokenOf(req.headers.authorization)
         if (!t) return void res.status(401).json({ error: "Sign in required" })
@@ -190,7 +191,7 @@ describe("admin content API", () => {
 
   describe("daily limits", () => {
     const book = async (user: string, date = DAY) =>
-      (await call("POST", "/api/bookings", { packageSlug: "peak", destinationSlug: "highlands", date, guests: 1 }, user)).status
+      (await call("POST", "/api/bookings", { packageSlug: "peak", destinationSlug: "highlands", date, guests: 1, paymentMethod: "cash" }, user)).status
 
     it("a date-specific limit overrides the default", async () => {
       assert.equal((await call("PUT", "/api/admin/limits", { packageId: 1, destinationId: 1, date: DAY, maxBookings: 1 })).status, 200)

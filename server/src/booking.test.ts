@@ -54,6 +54,8 @@ describe("API", () => {
       catalog,
       store: memory,
       content: memory,
+      engage: memory,
+
       
       // Test auth: "Authorization: Bearer <userId>". Ids starting with "admin" are admins.
       requireAuth: (req, res, next) => {
@@ -108,6 +110,7 @@ describe("API", () => {
     date: OK_DATE,
     guests: 2,
     addonIds: [],
+    paymentMethod: "cash",
     ...over,
   })
 
@@ -316,7 +319,7 @@ describe("API", () => {
     it("a stale change is refused instead of overwriting someone else's", async () => {
       const store = createMemoryStore(addons)
       const rec = await store.createBooking(
-        { reference: "SQ-AAAAAA", userId: "u", packageId: 1, destinationId: 1, packageName: "P", destinationName: "D", date: "2030-11-01", guests: 1, mealOption: null, totalPrice: 1, addons: [] },
+        { reference: "SQ-AAAAAA", userId: "u", packageId: 1, destinationId: 1, packageName: "P", destinationName: "D", date: "2030-11-01", guests: 1, mealOption: null, totalPrice: 1, addons: [], paymentMethod: "cash", paymentStatus: "unpaid" },
         3,
       )
       assert.ok(await store.updateBooking(rec.reference, { status: "pending", paymentStatus: "unpaid" }, { status: "confirmed" }))

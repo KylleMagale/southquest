@@ -1,5 +1,8 @@
 import type { Addon } from "./pricing.js"
 
+export const PAYMENT_METHODS = ["gcash", "card", "cash"] as const
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
+
 export interface NewBooking {
   reference: string
   userId: string
@@ -12,6 +15,9 @@ export interface NewBooking {
   mealOption: string | null
   totalPrice: number
   addons: Addon[]
+  /** Demo payment: "gcash" and "card" are marked paid straight away, "cash" stays unpaid until an admin marks it. */
+  paymentMethod: PaymentMethod
+  paymentStatus: "unpaid" | "paid"
 }
 
 export interface BookingRecord {
@@ -26,6 +32,8 @@ export interface BookingRecord {
   totalPrice: number
   status: "pending" | "confirmed" | "rejected" | "cancelled"
   paymentStatus: "unpaid" | "paid" | "refunded"
+  /** null for bookings made before payment methods existed. */
+  paymentMethod: PaymentMethod | null
   createdAt: string
 }
 
